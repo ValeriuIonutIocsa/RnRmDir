@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
+import java.util.stream.Stream;
 
 final class AppStartRnRmDir {
 
@@ -72,7 +73,12 @@ final class AppStartRnRmDir {
 			System.err.println("ERROR - folder does not exist");
 
 		} else {
-			Files.setAttribute(folderPath, "dos:readonly", false);
+			try (Stream<Path> filePathStream = Files.walk(folderPath)) {
+
+				filePathStream
+						.filter(Files::isRegularFile)
+						.forEach(AppStartRnRmDir::tryClearReadOnlyFlag);
+			}
 
 			final String renamedFolderPathString = folderPath + "_TO_BE_DELETED";
 			final Path renamedFolderPath = Paths.get(renamedFolderPathString);
@@ -87,6 +93,22 @@ final class AppStartRnRmDir {
 			success = true;
 		}
 		return success;
+	}
+
+	private static void tryClearReadOnlyFlag(
+			final Path filePath) {
+
+		boolean success = false;
+		try {
+			success = filePath.toFile().setWritable(true);
+
+		} catch (final Exception exc) {
+			exc.printStackTrace();
+		}
+		if (!success) {
+			System.err.println("failed to clear readonly flag of file:" +
+					System.lineSeparator() + filePath);
+		}
 	}
 
 	private static String durationToString(
